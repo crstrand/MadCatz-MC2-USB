@@ -10,24 +10,24 @@
 #define TIMEOUT_HALF_SECONDS 20
 
 /*
-Pin	Function      Wire Color
+Pin  Function      Wire Color
 D1  CAL           ORG/WHT(J5)
-D2	Left paddle   GRN/WHT
-D3	Right paddle  PNK
-D4	Shift Up      GRN(2)
-D5	Shift Down    BLU(2)
-D6	DUP           PNK/BLK
-D7	DDN           YEL/BLK
-D8	DL            ORG/WHT
-D9	DR            RED/WHT
-D10	Start         RED
-D16	Cross         GRY
-D14	Circle        GRN
-D15	Square        WHT
-D18	Triangle      BLU
-A1	Accel         BRN(2)
-A2	Brake         RED(2)
-A3	Steering      WHT(3)
+D2  Left paddle   GRN/WHT
+D3  Right paddle  PNK
+D4  Shift Up      GRN(2)
+D5  Shift Down    BLU(2)
+D6  DUP           PNK/BLK
+D7  DDN           YEL/BLK
+D8  DL            ORG/WHT
+D9  DR            RED/WHT
+D10 Start         RED
+D16 Cross         GRY
+D14 Circle        GRN
+D15 Square        WHT
+D18 Triangle      BLU
+A1  Accel         BRN(2)
+A2  Brake         RED(2)
+A3  Steering      WHT(3)
 */
 #define CAL       1
 #define PADDLE_L  2
@@ -130,40 +130,40 @@ void read_buttons()
 
 void show_menu()
 {
-  Serial.println("\n    Calibration menu");
-  Serial.println("1. Steering wheel min/max/center");
-  Serial.println("2. Accelerator min/max");
-  Serial.println("3. Brake min/max");
-  Serial.println("4. Steering wheel deadband setting");
-  Serial.println("5. Reset all values to defaults");
-  Serial.println("0. quit cal mode and save values to EEPROM");
-  Serial.println("q. Quit and do not save\n");
-  Serial.print("You have ");
+  Serial.println(PSTR("\n    Calibration menu"));
+  Serial.println(PSTR("1. Steering wheel min/max/center"));
+  Serial.println(PSTR("2. Accelerator min/max"));
+  Serial.println(PSTR("3. Brake min/max"));
+  Serial.println(PSTR("4. Steering wheel deadband setting"));
+  Serial.println(PSTR("5. Reset all values to defaults"));
+  Serial.println(PSTR("0. quit cal mode and save values to EEPROM"));
+  Serial.println(PSTR("q. Quit and do not save\n"));
+  Serial.print(PSTR("You have "));
   Serial.print(TIMEOUT_HALF_SECONDS/2);
-  Serial.println(" seconds to make a selection");
+  Serial.println(PSTR(" seconds to make a selection"));
 }
 
 void steering_cal()
 {
-  Serial.println("Hold the steering wheel all the way to the LEFT then press 'm' to measure");
+  Serial.println(PSTR("Hold the steering wheel all the way to the LEFT then press 'm' to measure"));
   while(Serial.read()!='m') delay(500);
   wheelcal.steering_left = analogRead(WHEEL);
-  Serial.print("steering_left = ");
+  Serial.print(PSTR("steering_left = "));
   Serial.println(wheelcal.steering_left);
   
-  Serial.println("Hold the steering wheel all the way to the RIGHT then press 'm' to measure");
+  Serial.println(PSTR("Hold the steering wheel all the way to the RIGHT then press 'm' to measure"));
   while(Serial.read()!='m') delay(500);
   wheelcal.steering_right = analogRead(WHEEL);
-  Serial.print("steering_right = ");
+  Serial.print(PSTR("steering_right = "));
   Serial.println(wheelcal.steering_right);
 
-  Serial.println("Hold the steering wheel in the CENTER then press 'm' to measure");
+  Serial.println(PSTR("Hold the steering wheel in the CENTER then press 'm' to measure"));
   while(Serial.read()!='m') delay(500);
   wheelcal.steering_center = analogRead(WHEEL);
-  Serial.print("steering_center = ");
+  Serial.print(PSTR("steering_center = "));
   Serial.println(wheelcal.steering_center);
 
-  Serial.println("Press any key to continue");
+  Serial.println(PSTR("Press any key to continue"));
   while(!Serial.available()) delay(500);
 }
 
@@ -171,49 +171,49 @@ void steering_deadband()
 {
   int deadband_new = 0;
   Serial.setTimeout(10*1000);
-  Serial.println("Enter the value for the steering deadband (2-100)");
-  Serial.print("(full range of steering values is 0 to 1023)\nCurrent value: ");
+  Serial.println(PSTR("Enter the value for the steering deadband (2-100)"));
+  Serial.print(PSTR("(full range of steering values is 0 to 1023)\nCurrent value: "));
   Serial.print(wheelcal.steering_db);
   deadband_new = Serial.readStringUntil('\n').toInt();
   if(deadband_new>=2 && deadband_new<=100)
     wheelcal.steering_db = deadband_new;
-  Serial.print("\ndeadband = ");
+  Serial.print(PSTR("\ndeadband = "));
   Serial.println(wheelcal.steering_db);
 }
 
 void accel_cal()
 {
-  Serial.println("Ensure the accelerator pedal is not depressed then press 'm' to measure");
+  Serial.println(PSTR("Ensure the accelerator pedal is not depressed then press 'm' to measure"));
   while(Serial.read()!='m') delay(500);
   wheelcal.accel_min = analogRead(ACCEL);
-  Serial.print("accel_min = ");
+  Serial.print(PSTR("accel_min = "));
   Serial.println(wheelcal.accel_min);
   
-  Serial.println("Fully depress the accelerator pedal then press 'm' to measure");
+  Serial.println(PSTR("Fully depress the accelerator pedal then press 'm' to measure"));
   while(Serial.read()!='m') delay(500);
   wheelcal.accel_max = analogRead(ACCEL);
-  Serial.print("accel_max = ");
+  Serial.print(PSTR("accel_max = "));
   Serial.println(wheelcal.accel_max);
 
-  Serial.println("Press any key to continue");
+  Serial.println(PSTR("Press any key to continue"));
   while(!Serial.available()) delay(500);
 }
 
 void brake_cal()
 {
-  Serial.println("Ensure the brake pedal is not depressed then press 'm' to measure");
+  Serial.println(PSTR("Ensure the brake pedal is not depressed then press 'm' to measure"));
   while(Serial.read()!='m') delay(500);
   wheelcal.brake_min = analogRead(BRAKE);
-  Serial.print("brake_min = ");
+  Serial.print(PSTR("brake_min = "));
   Serial.println(wheelcal.brake_min);
   
-  Serial.println("Fully depress the brake pedal then press 'm' to measure");
+  Serial.println(PSTR("Fully depress the brake pedal then press 'm' to measure"));
   while(Serial.read()!='m') delay(500);
   wheelcal.brake_max = analogRead(BRAKE);
-  Serial.print("brake_max = ");
+  Serial.print(PSTR("brake_max = "));
   Serial.println(wheelcal.brake_max);
 
-  Serial.println("Press any key to continue");
+  Serial.println(PSTR("Press any key to continue"));
   while(!Serial.available()) delay(500);
 }
 
@@ -273,22 +273,22 @@ void save_cal()
 
 void print_cal()
 {
-  Serial.println("\nCurrent calibration values:");
-  Serial.print("steering_left = ");
+  Serial.println(PSTR("\nCurrent calibration values:"));
+  Serial.print(PSTR("steering_left = "));
   Serial.println(wheelcal.steering_left);
-  Serial.print("steering_right = ");
+  Serial.print(PSTR("steering_right = "));
   Serial.println(wheelcal.steering_right);
-  Serial.print("steering_center = ");
+  Serial.print(PSTR("steering_center = "));
   Serial.println(wheelcal.steering_center);
-  Serial.print("steering_deadband = ");
+  Serial.print(PSTR("steering_deadband = "));
   Serial.println(wheelcal.steering_db);
-  Serial.print("accel_min = ");
+  Serial.print(PSTR("accel_min = "));
   Serial.println(wheelcal.accel_min);
-  Serial.print("accel_max = ");
+  Serial.print(PSTR("accel_max = "));
   Serial.println(wheelcal.accel_max);
-  Serial.print("brake_min = ");
+  Serial.print(PSTR("brake_min = "));
   Serial.println(wheelcal.brake_min);
-  Serial.print("brake_max = ");
+  Serial.print(PSTR("brake_max = "));
   Serial.println(wheelcal.brake_max);
 
 }
@@ -303,7 +303,7 @@ void reset_cal()
   wheelcal.accel_max = 1023;
   wheelcal.brake_min = 0;
   wheelcal.brake_max = 1023;
-  Serial.println("Calibration values set back to defaults");
+  Serial.println(PSTR("Calibration values set back to defaults"));
   //save_cal();
 }
 
@@ -356,18 +356,18 @@ void do_analog_cal()
             break;
           case '0':
             // save to EEPROM
-            Serial.println("Done calibration. Saving values to EEPROM");
+            Serial.println(PSTR("Done calibration. Saving values to EEPROM"));
             save_cal();
             done = true;
             break;
           case 'q':
-            Serial.println("Exiting calibration mode.  Values NOT saved to EEPROM");
+            Serial.println(PSTR("Exiting calibration mode.  Values NOT saved to EEPROM"));
             done = true;
             break;
         }
       }
       else // timeout
-        Serial.println("\nTimeout.  Exiting calibration mode.  Values NOT saved to EEPROM");
+        Serial.println(PSTR("\nTimeout.  Exiting calibration mode.  Values NOT saved to EEPROM"));
 
       done |= timeout;
     }
@@ -397,7 +397,7 @@ void setup() {
 
   //while(!Serial) {delay(100);}
   read_cal();
-  Serial.println("calibration read from EEPROM");
+  Serial.println(PSTR("calibration read from EEPROM"));
 
   // apply calibration
   Joystick.setAcceleratorRange(wheelcal.accel_min,wheelcal.accel_max);
@@ -442,19 +442,19 @@ void loop()
 
   if(scanmode)
   {
-    Serial.print("Average: ");
+    Serial.print(PSTR("Average: "));
     Serial.print(_accel);
-    Serial.print(",");
+    Serial.print(PSTR(","));
     Serial.print(_brake);
-    Serial.print(",");
+    Serial.print(PSTR(","));
     Serial.print(_wheel);
-    Serial.print("  Raw: ");
+    Serial.print(PSTR("  Raw: "));
     Serial.print(accel_samples_buff[num_accel_samples]);
-    Serial.print(",");
+    Serial.print(PSTR(","));
     Serial.print(brake_samples_buff[num_brake_samples]);
-    Serial.print(",");
+    Serial.print(PSTR(","));
     Serial.print(wheel_samples_buff[num_wheel_samples]);
-    Serial.print("                   \r");
+    Serial.print(PSTR("                   \r"));
   }
 
   num_accel_samples++;
@@ -504,7 +504,7 @@ void loop()
     case 'c':
       do_analog_cal();
       // apply calibration
-      Serial.println("Applying calibration");
+      Serial.println(PSTR("Applying calibration"));
       Joystick.setAcceleratorRange(wheelcal.accel_min,wheelcal.accel_max);
       Joystick.setBrakeRange(wheelcal.brake_min,wheelcal.brake_max);
       Joystick.setSteeringRange(wheelcal.steering_left,wheelcal.steering_right);
@@ -516,23 +516,23 @@ void loop()
       scanmode = !scanmode;
       break;
     case 'h':
-      Serial.println("c - calibrate\np - print cal values\ns - analog scan mode\nh - this help screen\na - about this software");
+      Serial.println(PSTR("c - calibrate\np - print cal values\ns - analog scan mode\nh - this help screen\na - about this software"));
       break;
     case 'a':
-      Serial.println("\nMadCatz MC2 USB Conversion Firmware\nfor Arduino Pro Micro (Atmega32U4)\nCopyright 2020 Cam Strandlund\n");
+      Serial.println(PSTR("\nMadCatz MC2 USB Conversion Firmware\nfor Arduino Pro Micro (Atmega32U4)\nCopyright 2020 Cam Strandlund\n"));
       break;
   }
 
 #if DEBUG
-  Serial.print("accel = ");
+  Serial.print(PSTR("accel = "));
   Serial.print(_accel);
-  Serial.print("  brake = ");
+  Serial.print(PSTR("  brake = "));
   Serial.print(_brake);
-  Serial.print("  wheel = ");
+  Serial.print(PSTR("  wheel = "));
   Serial.println(_wheel);
   #if 0
-  Serial.println("012345678");
-  Serial.println("---------");
+  Serial.println(PSTR("012345678"));
+  Serial.println(PSTR("---------"));
   Serial.print(digitalRead(PADDLE_L));
   Serial.print(digitalRead(PADDLE_R));
   Serial.print(digitalRead(SHIFT_UP));
