@@ -46,6 +46,7 @@ A3	Steering      WHT(3)
 #define ACCEL    A1
 #define BRAKE    A2
 #define WHEEL    A3
+#define MAX_NUM_BUTTONS 9
 
 Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,JOYSTICK_TYPE_GAMEPAD,
   9, 4,                  // Button Count, Hat Switch Count
@@ -62,13 +63,13 @@ const bool testAutoSendMode = false;
 struct caltype
 {
 int steering_left = 0;
-int steering_right = 1023;
-int steering_center = 512;
-int steering_db = 10;
+int steering_right = 995;
+int steering_center = 496;
+int steering_db = 50;
 int accel_min = 0;
-int accel_max = 1023;
+int accel_max = 758;
 int brake_min = 0;
-int brake_max = 1023;
+int brake_max = 780;
 } wheelcal;
 
 int _dpad_switch[4]={DUP,DRT,DDN,DLT};
@@ -116,15 +117,15 @@ void read_DPAD()
 
 void read_buttons()
 {
-  Joystick.setButton(0,digitalRead(PADDLE_L));
-  Joystick.setButton(1,digitalRead(PADDLE_R));
-  Joystick.setButton(2,digitalRead(SHIFT_UP));
-  Joystick.setButton(3,digitalRead(SHIFT_DN));
-  Joystick.setButton(4,digitalRead(START));
-  Joystick.setButton(5,digitalRead(CROSS));
-  Joystick.setButton(6,digitalRead(CIRCLE));
-  Joystick.setButton(7,digitalRead(SQUARE));
-  Joystick.setButton(8,digitalRead(TRIANGLE));
+  Joystick.setButton(0,!digitalRead(PADDLE_L));
+  Joystick.setButton(1,!digitalRead(PADDLE_R));
+  Joystick.setButton(2,!digitalRead(SHIFT_UP));
+  Joystick.setButton(3,!digitalRead(SHIFT_DN));
+  Joystick.setButton(4,!digitalRead(START));
+  Joystick.setButton(5,!digitalRead(CROSS));
+  Joystick.setButton(6,!digitalRead(CIRCLE));
+  Joystick.setButton(7,!digitalRead(SQUARE));
+  Joystick.setButton(8,!digitalRead(TRIANGLE));
 }
 
 void show_menu()
@@ -134,6 +135,7 @@ void show_menu()
   Serial.println("2. Accelerator min/max");
   Serial.println("3. Brake min/max");
   Serial.println("4. Steering wheel deadband setting");
+  Serial.println("5. Reset all values to defaults");
   Serial.println("0. quit cal mode and save values to EEPROM");
   Serial.println("q. Quit and do not save\n");
   Serial.print("You have ");
@@ -219,42 +221,42 @@ void read_cal()
 {
   // read the values out of EEPROM, but make sure they make sense or just leave them at default
   caltype temp_cal;
-  EEPROM.get(0,temp_cal);
   String cal_error="";
+  EEPROM.get(0,temp_cal);
   // range check each setting
   if(temp_cal.steering_left>=0 && temp_cal.steering_left<=(1023/3))
     wheelcal.steering_left = temp_cal.steering_left;
   else
-    cal_error += "invalid value for steering_left: " + temp_cal.steering_left;
+    cal_error += "invalid value for steering_left: " + String(temp_cal.steering_left);
   
   if(temp_cal.steering_right>=(1023*2/3) && temp_cal.steering_right<=1023)
     wheelcal.steering_right = temp_cal.steering_right;
   else
-    cal_error += "invalid value for steering_right: " + temp_cal.steering_right;
+    cal_error += "invalid value for steering_right: " + String(temp_cal.steering_right);
 
   if(temp_cal.steering_center>=(1023/3) && temp_cal.steering_center<=(1023*2/3))
     wheelcal.steering_center = temp_cal.steering_center;
   else
-    cal_error += "invalid value for steering_center: " + temp_cal.steering_center;
+    cal_error += "invalid value for steering_center: " + String(temp_cal.steering_center);
 
   if(temp_cal.steering_db>=2 && temp_cal.steering_db<=100)
     wheelcal.steering_db = temp_cal.steering_db;
   else
-    cal_error += "invalid value for steering_db: " + temp_cal.steering_db;
+    cal_error += "invalid value for steering_db: " + String(temp_cal.steering_db);
 
   if(temp_cal.accel_min>=0 && temp_cal.accel_min<=(1023/3))
     wheelcal.accel_min = temp_cal.accel_min;
   else
-    cal_error += "invalid value for accel_min: " + temp_cal.accel_min;
+    cal_error += "invalid value for accel_min: " + String(temp_cal.accel_min);
   if(temp_cal.accel_max>=(1023*2/3) && temp_cal.accel_max<=1023)
     wheelcal.accel_max = temp_cal.accel_max;
   else
-    cal_error += "invalid value for accel_max: " + temp_cal.accel_max;
+    cal_error += "invalid value for accel_max: " + String(temp_cal.accel_max);
 
   if(temp_cal.brake_min>=0 && temp_cal.brake_min<=(1023/3))
     wheelcal.brake_min = temp_cal.brake_min;
   else
-    cal_error += "invalid value for brake_min: " + temp_cal.brake_min;
+    cal_error += "invalid value for brake_min: " + String(temp_cal.brake_min);
   if(temp_cal.brake_max>=(1023*2/3) && temp_cal.brake_max<=1023)
     wheelcal.brake_max = temp_cal.brake_max;
   else
@@ -288,6 +290,21 @@ void print_cal()
   Serial.println(wheelcal.brake_min);
   Serial.print("brake_max = ");
   Serial.println(wheelcal.brake_max);
+
+}
+
+void reset_cal()
+{
+  wheelcal.steering_left = 0;
+  wheelcal.steering_right = 1023;
+  wheelcal.steering_center = 511;
+  wheelcal.steering_db = 50;
+  wheelcal.accel_min = 0;
+  wheelcal.accel_max = 1023;
+  wheelcal.brake_min = 0;
+  wheelcal.brake_max = 1023;
+  Serial.println("Calibration values set back to defaults");
+  //save_cal();
 }
 
 void do_analog_cal()
@@ -334,6 +351,9 @@ void do_analog_cal()
           case '4':
             steering_deadband();
             break;
+          case '5':
+            reset_cal();
+            break;
           case '0':
             // save to EEPROM
             Serial.println("Done calibration. Saving values to EEPROM");
@@ -357,7 +377,8 @@ void do_analog_cal()
 void setup() {
 
   Joystick.begin(testAutoSendMode);
-  
+  Serial.begin(115200);
+
   pinMode(CAL, INPUT_PULLUP);
   pinMode(PADDLE_L, INPUT_PULLUP);
   pinMode(PADDLE_R, INPUT_PULLUP);
@@ -374,7 +395,10 @@ void setup() {
   pinMode(TRIANGLE, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
 
+  //while(!Serial) {delay(100);}
   read_cal();
+  Serial.println("calibration read from EEPROM");
+
   // apply calibration
   Joystick.setAcceleratorRange(wheelcal.accel_min,wheelcal.accel_max);
   Joystick.setBrakeRange(wheelcal.brake_min,wheelcal.brake_max);
