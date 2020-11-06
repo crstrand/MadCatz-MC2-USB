@@ -386,12 +386,14 @@ void setup() {
   pinMode(TRIANGLE, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
 
-  while(!Serial) {delay(100);}
   read_cal();
+  if(Serial)
+  {
   Serial.println(F("calibration read from EEPROM"));
 
   // apply calibration
   Serial.println(F("Applying calibration"));
+  }
   Joystick.setAcceleratorRange(wheelcal.accel_min,wheelcal.accel_max);
   Joystick.setBrakeRange(wheelcal.brake_min,wheelcal.brake_max);
   Joystick.setSteeringRange(wheelcal.steering_left,wheelcal.steering_right);
@@ -495,30 +497,33 @@ void loop()
   {
     Joystick.sendState();
   }
-  switch(Serial.read())
+  if(Serial)
   {
-    case 'c':
-      do_analog_cal();
-      // apply calibration
-      Serial.println(F("Applying calibration"));
-      Joystick.setAcceleratorRange(wheelcal.accel_min,wheelcal.accel_max);
-      Joystick.setBrakeRange(wheelcal.brake_min,wheelcal.brake_max);
-      Joystick.setSteeringRange(wheelcal.steering_left,wheelcal.steering_right);
-      break;
-    case 'p':
-      print_cal();
-      break;
-    case 's':
-      scanmode = !scanmode;
-      break;
-    case 'h':
-      Serial.println(F("c - calibrate\np - print cal values\ns - analog scan mode\nh - this help screen\na - about this software"));
-      break;
-    case 'a':
-      Serial.println(F("\nMadCatz MC2 USB Conversion Firmware\nfor Arduino Pro Micro (Atmega32U4)\nCopyright 2020 Cam Strandlund\n"));
-      break;
+    switch(Serial.read())
+    {
+      case 'c':
+        do_analog_cal();
+        // apply calibration
+        Serial.println(F("Applying calibration"));
+        Joystick.setAcceleratorRange(wheelcal.accel_min,wheelcal.accel_max);
+        Joystick.setBrakeRange(wheelcal.brake_min,wheelcal.brake_max);
+        Joystick.setSteeringRange(wheelcal.steering_left,wheelcal.steering_right);
+        break;
+      case 'p':
+        print_cal();
+        break;
+      case 's':
+        scanmode = !scanmode;
+        break;
+      case 'h':
+        Serial.println(F("c - calibrate\np - print cal values\ns - analog scan mode\nh - this help screen\na - about this software"));
+        break;
+      case 'a':
+        Serial.println(F("\nMadCatz MC2 USB Conversion Firmware\nfor Arduino Pro Micro (Atmega32U4)\nCopyright 2020 Cam Strandlund\n"));
+        break;
+    }
   }
-
+  
 #if DEBUG
   Serial.print(F("accel = "));
   Serial.print(_accel);
