@@ -389,10 +389,9 @@ void setup() {
   read_cal();
   if(Serial)
   {
-  Serial.println(F("calibration read from EEPROM"));
-
-  // apply calibration
-  Serial.println(F("Applying calibration"));
+    Serial.println(F("calibration read from EEPROM"));
+    // apply calibration
+    Serial.println(F("Applying calibration"));
   }
   Joystick.setAcceleratorRange(wheelcal.accel_min,wheelcal.accel_max);
   Joystick.setBrakeRange(wheelcal.brake_min,wheelcal.brake_max);
@@ -523,7 +522,7 @@ void loop()
         break;
     }
   }
-  
+
 #if DEBUG
   Serial.print(F("accel = "));
   Serial.print(_accel);
