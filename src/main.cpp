@@ -8,7 +8,7 @@
 
 #define DEBUG 0
 #define TIMEOUT_HALF_SECONDS 20
-
+#define COSINE_SCALING 1
 /*
 Pin  Function      Wire Color
 D1  CAL           ORG/WHT(J5)
@@ -187,6 +187,51 @@ void steering_deadband()
     wheelcal.steering_db = deadband_new;
   Serial.print(F("\ndeadband = "));
   Serial.println(wheelcal.steering_db);
+}
+
+int cosine_scaling(int input_val)
+{
+  float input_angle,cos_val;
+  float bottom_range, top_range;
+  if(input_val<=wheelcal.steering_center) // we are between min and center
+  {
+    // input_angle = 90*input_val/(Center-Min)-90
+    bottom_range = wheelcal.steering_center-wheelcal.steering_left;
+    input_angle = 90*float(input_val)/bottom_range-90;
+    cos_val = cos(input_angle*PI/180)*(bottom_range);
+    #if DEBUG
+    Serial.print(F(" input_val = "));
+    Serial.print(input_val,DEC);
+    Serial.print(F(" bottom_range = "));
+    Serial.print(bottom_range,DEC);
+    Serial.print(F(" input_angle = "));
+    Serial.print(input_angle,DEC);
+    Serial.print(F(" cos_val = "));
+    Serial.print(cos_val,DEC);
+    Serial.print(" \n");
+    #endif
+  }
+  else // we are between center+1 and max
+  {
+    // input_angle = 90*(input_val-Center)/(Max-Center)
+    // Cos_ratio_high = 1-COS(Input_Angle*PI()/180)
+    // cos_val = Cos_ratio_high*(Max-Center)+Center
+    top_range = wheelcal.steering_right-wheelcal.steering_center;
+    input_angle = float(input_val-wheelcal.steering_center)*90/top_range;
+    cos_val = ((1-cos(input_angle*PI/180))*top_range) + wheelcal.steering_center;
+    #if DEBUG
+    Serial.print(F(" input_val = "));
+    Serial.print(input_val,DEC);
+    Serial.print(F(" top_range = "));
+    Serial.print(top_range,DEC);
+    Serial.print(F(" input_angle = "));
+    Serial.print(input_angle,DEC);
+    Serial.print(F(" cos_val = "));
+    Serial.print(cos_val,DEC);
+    Serial.print(" \n");
+    #endif
+  }
+  return int(cos_val);
 }
 
 void accel_cal()
@@ -416,7 +461,7 @@ int num_wheel_samples = 0;
 int _accel = 0;
 int _brake = 0;
 int _wheel = 0;
-
+int raw_wheel = 0;
 int accel_samples_buff[ACCEL_FILTER_SAMPLES];
 int brake_samples_buff[BRAKE_FILTER_SAMPLES];
 int wheel_samples_buff[WHEEL_FILTER_SAMPLES];
@@ -429,7 +474,12 @@ void loop()
 
   accel_samples_buff[num_accel_samples] = analogRead(ACCEL);
   brake_samples_buff[num_brake_samples] = analogRead(BRAKE);
-  wheel_samples_buff[num_wheel_samples] = analogRead(WHEEL);
+  raw_wheel = analogRead(WHEEL);
+  #if COSINE_SCALING
+  wheel_samples_buff[num_wheel_samples] = cosine_scaling(raw_wheel);
+  #else
+  wheel_samples_buff[num_wheel_samples] = raw_wheel;
+  #endif
 
   if(scanmode)
   {
@@ -439,12 +489,19 @@ void loop()
     Serial.print(_brake);
     Serial.print(F(","));
     Serial.print(_wheel);
+    #if COSINE_SCALING
+    Serial.print(F(" (cosine scaled)"));
+    #else
+    // show what the cosine scaling "would" do
+    Serial.print(F(" cosine_scaling="));
+    Serial.print(cosine_scaling(wheel_samples_buff[num_wheel_samples]),DEC);
+    #endif
     Serial.print(F("  Raw: "));
     Serial.print(accel_samples_buff[num_accel_samples]);
     Serial.print(F(","));
     Serial.print(brake_samples_buff[num_brake_samples]);
     Serial.print(F(","));
-    Serial.print(wheel_samples_buff[num_wheel_samples]);
+    Serial.print(raw_wheel);
     Serial.print(F("  "));
     for(int i = 0; i< MAX_NUM_BUTTONS; i++)
     {
@@ -481,9 +538,11 @@ void loop()
   for( i = 0; i < WHEEL_FILTER_SAMPLES; i++ )
     _wheel_sum += wheel_samples_buff[i];
   _wheel = _wheel_sum / WHEEL_FILTER_SAMPLES;
+  #if DEADBAND
   // if wheel value is in the deadband (center +/- half of deadband), set it to wheelcal.steering_center
   if(_wheel>=(wheelcal.steering_center-wheelcal.steering_db/2) && _wheel<=(wheelcal.steering_center+wheelcal.steering_db/2))
     _wheel = wheelcal.steering_center;
+  #endif
 
   Joystick.setAccelerator(1023-_accel);
   Joystick.setBrake(_brake);
@@ -524,25 +583,6 @@ void loop()
   }
 
 #if DEBUG
-  Serial.print(F("accel = "));
-  Serial.print(_accel);
-  Serial.print(F("  brake = "));
-  Serial.print(_brake);
-  Serial.print(F("  wheel = "));
-  Serial.println(_wheel);
-  #if 0
-  Serial.println(F("012345678"));
-  Serial.println(F("---------"));
-  Serial.print(digitalRead(PADDLE_L));
-  Serial.print(digitalRead(PADDLE_R));
-  Serial.print(digitalRead(SHIFT_UP));
-  Serial.print(digitalRead(SHIFT_DN));
-  Serial.print(digitalRead(START));
-  Serial.print(digitalRead(CROSS));
-  Serial.print(digitalRead(CIRCLE));
-  Serial.print(digitalRead(SQUARE));
-  Serial.println(digitalRead(TRIANGLE));
-  #endif
   delay(500);
 #else
   delay(50);
