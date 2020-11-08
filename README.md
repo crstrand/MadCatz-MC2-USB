@@ -3,7 +3,7 @@
 ## Features
 ### Now with Cosine scaling of the steering wheel input!<br>
 Even though the steering wheel seems to move +/- 135degrees, if you take the steering wheel value and cosine scale it between +/-90 degrees, you get a steering wheel that has less input in the center and increasing input closer to the ends of travel.<br>
-![Linear_vs_Cosine_graph.png](file:///./Linear_vs_Cosine_graph.png)
+![Linear_vs_Cosine_graph.png](Linear_vs_Cosine_graph.png)
 ## Wiring
 The wiring is included as comments at the top of main.cpp.<br>
 This requires **major** rewiring of your wheel.  You will remove the stock circuit board.<br>
