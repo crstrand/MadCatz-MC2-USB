@@ -8,7 +8,14 @@
 
 #define DEBUG 0
 #define TIMEOUT_HALF_SECONDS 20
+#define ENABLESERIAL 1
+#define ACCELAVG 0
+#define ACCELSCALING 1
+#define BRAKEAVG 0
+#define WHEELAVG 1
 #define COSINE_SCALING 1
+#define TIMESTUDY 0
+#define NUMLOOPS 100
 /*
 Pin  Function      Wire Color
 D1  CAL           ORG/WHT(J5)
@@ -29,15 +36,16 @@ A1  Accel         BRN(2)
 A2  Brake         RED(2)
 A3  Steering      WHT(3)
 */
+#define PROG      0
 #define CAL       1
 #define PADDLE_R  2
 #define PADDLE_L  3
 #define SHIFT_UP  4
 #define SHIFT_DN  5
-#define DUP 6
-#define DDN 7
-#define DLT 8
-#define DRT 9
+#define DUP       6
+#define DDN       7
+#define DLT       8
+#define DRT       9
 #define START    10
 #define CROSS    16
 #define CIRCLE   14
@@ -415,19 +423,20 @@ void setup() {
   Joystick.begin(testAutoSendMode);
   Serial.begin(115200);
 
-  pinMode(CAL, INPUT_PULLUP);
+  pinMode(PROG,     INPUT_PULLUP);
+  pinMode(CAL,      INPUT_PULLUP);
   pinMode(PADDLE_L, INPUT_PULLUP);
   pinMode(PADDLE_R, INPUT_PULLUP);
   pinMode(SHIFT_UP, INPUT_PULLUP);
   pinMode(SHIFT_DN, INPUT_PULLUP);
-  pinMode(DUP, INPUT_PULLUP);
-  pinMode(DDN, INPUT_PULLUP);
-  pinMode(DLT, INPUT_PULLUP);
-  pinMode(DRT, INPUT_PULLUP);
-  pinMode(START, INPUT_PULLUP);
-  pinMode(CROSS, INPUT_PULLUP);
-  pinMode(CIRCLE, INPUT_PULLUP);
-  pinMode(SQUARE, INPUT_PULLUP);
+  pinMode(DUP,      INPUT_PULLUP);
+  pinMode(DDN,      INPUT_PULLUP);
+  pinMode(DLT,      INPUT_PULLUP);
+  pinMode(DRT,      INPUT_PULLUP);
+  pinMode(START,    INPUT_PULLUP);
+  pinMode(CROSS,    INPUT_PULLUP);
+  pinMode(CIRCLE,   INPUT_PULLUP);
+  pinMode(SQUARE,   INPUT_PULLUP);
   pinMode(TRIANGLE, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -458,63 +467,41 @@ int num_accel_samples = 0;
 int num_brake_samples = 0;
 int num_wheel_samples = 0;
 
-int _accel = 0;
-int _brake = 0;
-int _wheel = 0;
-int raw_wheel = 0;
+int _accel, raw_accel;
+int _brake, raw_brake;
+int _wheel,raw_wheel, new_wheel;
 int accel_samples_buff[ACCEL_FILTER_SAMPLES];
 int brake_samples_buff[BRAKE_FILTER_SAMPLES];
 int wheel_samples_buff[WHEEL_FILTER_SAMPLES];
+float accel_scaling_value = 1.2;
+
 bool scanmode = false;
 
 uint8_t i;
+unsigned long startmsec, elapsedmsec;
+int loopcounter=0;
 
 void loop() 
 {
-
-  accel_samples_buff[num_accel_samples] = analogRead(ACCEL);
-  brake_samples_buff[num_brake_samples] = analogRead(BRAKE);
-  raw_wheel = analogRead(WHEEL);
-  #if COSINE_SCALING
-  wheel_samples_buff[num_wheel_samples] = cosine_scaling(raw_wheel);
-  #else
-  wheel_samples_buff[num_wheel_samples] = raw_wheel;
-  #endif
-
-  if(scanmode)
+  #if TIMESTUDY
+  if(loopcounter==0)
+    startmsec = millis();
+  if(++loopcounter>NUMLOOPS)
   {
-    Serial.print(F("Average: "));
-    Serial.print(_accel);
-    Serial.print(F(","));
-    Serial.print(_brake);
-    Serial.print(F(","));
-    Serial.print(_wheel);
-    #if COSINE_SCALING
-    Serial.print(F(" (cosine scaled)"));
-    #else
-    // show what the cosine scaling "would" do
-    Serial.print(F(" cosine_scaling="));
-    Serial.print(cosine_scaling(wheel_samples_buff[num_wheel_samples]),DEC);
-    #endif
-    Serial.print(F("  Raw: "));
-    Serial.print(accel_samples_buff[num_accel_samples]);
-    Serial.print(F(","));
-    Serial.print(brake_samples_buff[num_brake_samples]);
-    Serial.print(F(","));
-    Serial.print(raw_wheel);
-    Serial.print(F("  "));
-    for(int i = 0; i< MAX_NUM_BUTTONS; i++)
+    elapsedmsec = millis() - startmsec;
+    if(Serial)
     {
-      Serial.print(buttonState[i]);
+      Serial.print(NUMLOOPS);
+      Serial.print(" loops took ");
+      Serial.print(elapsedmsec/NUMLOOPS);
+      Serial.println(" milliseconds per loop");
     }
-    Serial.print(F("                   \r"));
-
+    loopcounter = 0;
   }
-
-  num_accel_samples++;
-  num_brake_samples++;
-  num_wheel_samples++;
-
+  #endif
+  raw_accel = analogRead(ACCEL);
+  #if ACCELAVG
+  accel_samples_buff[num_accel_samples++] = raw_accel;
   // calculate a moving average for accelerator
   if( num_accel_samples >= ACCEL_FILTER_SAMPLES)
     num_accel_samples = 0;
@@ -522,7 +509,16 @@ void loop()
   for( i = 0; i < ACCEL_FILTER_SAMPLES; i++ )
     _accel_sum += accel_samples_buff[i];
   _accel = _accel_sum / ACCEL_FILTER_SAMPLES;
+  #else
+  _accel = raw_accel;
+  #endif
+  #if ACCELSCALING
+  _accel = int(float(_accel) * accel_scaling_value);
+  #endif
 
+  raw_brake = analogRead(BRAKE);
+  #if BRAKEAVG
+  brake_samples_buff[num_brake_samples++] = raw_brake;
   // calculate a moving average for brake
   if( num_brake_samples >= BRAKE_FILTER_SAMPLES)
     num_brake_samples = 0;
@@ -530,21 +526,36 @@ void loop()
   for( i = 0; i < BRAKE_FILTER_SAMPLES; i++ )
     _brake_sum += brake_samples_buff[i];
   _brake = _brake_sum / BRAKE_FILTER_SAMPLES;
+  #else
+  _brake = raw_brake;
+  #endif
 
+  raw_wheel = analogRead(WHEEL);
+  #if COSINE_SCALING
+  new_wheel = cosine_scaling(raw_wheel);
+  #else
+  new_wheel = raw_wheel;
+  #endif
+  #if WHEELAVG
+  wheel_samples_buff[num_wheel_samples] = new_wheel;
+  num_wheel_samples++;
   // calculate a moving average for steering wheel
   if( num_wheel_samples >= WHEEL_FILTER_SAMPLES)
     num_wheel_samples = 0;
   _wheel_sum = 0;
   for( i = 0; i < WHEEL_FILTER_SAMPLES; i++ )
     _wheel_sum += wheel_samples_buff[i];
-  _wheel = _wheel_sum / WHEEL_FILTER_SAMPLES;
+  _wheel = _wheel_sum / WHEEL_FILTER_SAMPLES;  
+  #else
+  _wheel = raw_wheel;
+  #endif
   #if DEADBAND
   // if wheel value is in the deadband (center +/- half of deadband), set it to wheelcal.steering_center
   if(_wheel>=(wheelcal.steering_center-wheelcal.steering_db/2) && _wheel<=(wheelcal.steering_center+wheelcal.steering_db/2))
     _wheel = wheelcal.steering_center;
   #endif
 
-  Joystick.setAccelerator(1023-_accel);
+  Joystick.setAccelerator(_accel);
   Joystick.setBrake(_brake);
   Joystick.setSteering(_wheel);
 
@@ -555,7 +566,8 @@ void loop()
   {
     Joystick.sendState();
   }
-  if(Serial)
+  #if ENABLESERIAL
+  if(Serial.available())
   {
     switch(Serial.read())
     {
@@ -581,6 +593,36 @@ void loop()
         break;
     }
   }
+  if(scanmode)
+  {
+    Serial.print(F("Average: "));
+    Serial.print(_accel);
+    Serial.print(F(","));
+    Serial.print(_brake);
+    Serial.print(F(","));
+    Serial.print(_wheel);
+    #if COSINE_SCALING
+    Serial.print(F(" (cosine scaled)"));
+    #else
+    // show what the cosine scaling "would" do
+    Serial.print(F(" cosine_scaling="));
+    Serial.print(cosine_scaling(wheel_samples_buff[num_wheel_samples]),DEC);
+    #endif
+    Serial.print(F("  Raw: "));
+    Serial.print(raw_accel);
+    Serial.print(F(","));
+    Serial.print(raw_brake);
+    Serial.print(F(","));
+    Serial.print(raw_wheel);
+    Serial.print(F("  "));
+    for(int i = 0; i< MAX_NUM_BUTTONS; i++)
+    {
+      Serial.print(buttonState[i]);
+    }
+    Serial.print(F("                   \r"));
+
+  }
+  #endif
 
 #if DEBUG
   delay(500);
