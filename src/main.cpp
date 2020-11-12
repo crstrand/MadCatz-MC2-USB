@@ -17,44 +17,54 @@
 #define TIMESTUDY 0
 #define NUMLOOPS 100
 /*
-Pin  Function      Wire Color
-D1  CAL           ORG/WHT(J5)
-D2  Right paddle  PNK
-D3  Left paddle   GRN/WHT
-D4  Shift Up      GRN(2)
-D5  Shift Down    BLU(2)
-D6  DUP           PNK/BLK
-D7  DDN           YEL/BLK
-D8  DL            ORG/WHT
-D9  DR            RED/WHT
-D10 Start         RED
-D16 Cross         GRY
-D14 Circle        GRN
-D15 Square        WHT
-D18 Triangle      BLU
-A1  Accel         BRN(2)
-A2  Brake         RED(2)
-A3  Steering      WHT(3)
+The 6 wheel buttons; Cross,Circle,Square,Triangle,L2,R2 have a resistance of 17kohm not pressed or ~5kohm pressed
+This causes intermittent detection when using digital IO.  Therefore, reassign those 6 buttons to use the 6 remaining
+analog signals (the ones NOT used by wheel, accel, and brake)
+Start, Select, D-Pad, and shifter buttons are all open or closed momentary switches so they are OK for digital
+Pin   Function      Wire Color
+D0    R3 (paddle push) BRN/WHT
+D1    L3 (paddle push) YEL
+D2    Right paddle  PNK
+D3    Left paddle   GRN/WHT
+D4/A6 Cross         GRY  was D16
+D5    Shift Down    BLU(2)
+D6/A7 Square        WHT   was D15
+D7    DDN           YEL/BLK
+D8/A8 DL            ORG/WHT
+D9/A9 DR            RED/WHT
+D10/A10 Circle      GRN   was D14 Messed this one up so I converted it to open or ~600ohms so it should work as digital
+D16   Shift Up      GRN(2) was D4/A6
+D14   Start         RED was D10/A10
+D15   DUP           PNK/BLK  was D6/A7
+D18/A0 Triangle      BLU      OK as A0
+A1    Accel         BRN(2)
+A2    Brake         RED(2)
+A3    Steering      WHT(3)
+
+Unused
+L2  PUR
+R2  BLK
+CAL           ORG/WHT(J5)
 */
-#define PROG      0
-#define CAL       1
+#define PADDLE_R_PUSH 0
+#define PADDLE_L_PUSH 1
 #define PADDLE_R  2
 #define PADDLE_L  3
-#define SHIFT_UP  4
+#define CROSS    A6 //D4
 #define SHIFT_DN  5
-#define DUP       6
+#define SQUARE   A7 //D6
 #define DDN       7
 #define DLT       8
 #define DRT       9
-#define START    10
-#define CROSS    16
-#define CIRCLE   14
-#define SQUARE   15
-#define TRIANGLE 18
+#define START    14
+#define SHIFT_UP 16
+#define CIRCLE   A10 //D10
+#define DUP      15
+#define TRIANGLE A0 //D18
 #define ACCEL    A1
 #define BRAKE    A2
 #define WHEEL    A3
-#define MAX_NUM_BUTTONS 9
+#define MAX_NUM_BUTTONS 11
 
 // Default values taken from the first calibration performed
 #define STEERING_LEFT_DEFAULT 0
@@ -76,7 +86,7 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,JOYSTICK_TYPE_GAMEPAD,
 // Set to true to test "Auto Send" mode or false to test "Manual Send" mode.
 //const bool testAutoSendMode = true;
 const bool testAutoSendMode = false;
-
+int button_threshold = 205;
 
 struct caltype
 {
@@ -93,7 +103,7 @@ int brake_max = BRAKE_MAX_DEFAULT;
 int _dpad_switch[4]={DUP,DRT,DDN,DLT};
 int lastButtonState[4] = {0,0,0,0};
 int buttonState[MAX_NUM_BUTTONS];
-int buttonGPIO[MAX_NUM_BUTTONS] = {PADDLE_L,PADDLE_R,SHIFT_UP,SHIFT_DN,START,CROSS,CIRCLE,SQUARE,TRIANGLE};
+int buttonGPIO[MAX_NUM_BUTTONS] = {PADDLE_L,PADDLE_R,SHIFT_UP,SHIFT_DN,START,CIRCLE};
 
 void read_DPAD()
 {
@@ -137,9 +147,25 @@ void read_DPAD()
 
 void read_buttons()
 {
+  buttonState[0] = !digitalRead(PADDLE_L);
+  buttonState[1] = !digitalRead(PADDLE_R);
+  buttonState[2] = !digitalRead(CIRCLE);
+  // The last 3 buttons need to be read analog (CIRCLE should be too, but I "fixed" it)
+  // Interal pullup 20-50k, open button 17k, closed 6k
+  // open voltage  = 1.48V -> 17x5/1.48 - 17 = R(pullup) = 40.4k
+  // closed voltage = 6/46 x 5 = 0.652V
+  // Actual measurement closed voltage ~ 0.8 (use 1.0V)
+  // 10bit DAC = 1023 -> 1/5 * 1023 = 205
+  buttonState[3] = (analogRead(CROSS)<button_threshold);
+  buttonState[4] = (analogRead(TRIANGLE)<button_threshold);
+  buttonState[5] = (analogRead(SQUARE)<button_threshold);
+  buttonState[6] = !digitalRead(PADDLE_L_PUSH);
+  buttonState[7] = !digitalRead(PADDLE_R_PUSH);
+  buttonState[8] = !digitalRead(SHIFT_UP);
+  buttonState[9] = !digitalRead(SHIFT_DN);
+  buttonState[10] = !digitalRead(START);
   for(int i = 0; i< MAX_NUM_BUTTONS; i++)
   {
-    buttonState[i] = !digitalRead(buttonGPIO[i]);
     Joystick.setButton(i,buttonState[i]);
   }
 }
@@ -423,10 +449,10 @@ void setup() {
   Joystick.begin(testAutoSendMode);
   Serial.begin(115200);
 
-  pinMode(PROG,     INPUT_PULLUP);
-  pinMode(CAL,      INPUT_PULLUP);
-  pinMode(PADDLE_L, INPUT_PULLUP);
+  pinMode(PADDLE_R_PUSH,      INPUT_PULLUP);
+  pinMode(PADDLE_L_PUSH,     INPUT_PULLUP);
   pinMode(PADDLE_R, INPUT_PULLUP);
+  pinMode(PADDLE_L, INPUT_PULLUP);
   pinMode(SHIFT_UP, INPUT_PULLUP);
   pinMode(SHIFT_DN, INPUT_PULLUP);
   pinMode(DUP,      INPUT_PULLUP);
@@ -434,10 +460,10 @@ void setup() {
   pinMode(DLT,      INPUT_PULLUP);
   pinMode(DRT,      INPUT_PULLUP);
   pinMode(START,    INPUT_PULLUP);
-  pinMode(CROSS,    INPUT_PULLUP);
   pinMode(CIRCLE,   INPUT_PULLUP);
-  pinMode(SQUARE,   INPUT_PULLUP);
-  pinMode(TRIANGLE, INPUT_PULLUP);
+  pinMode(CROSS,    INPUT_PULLUP); // analog
+  pinMode(SQUARE,   INPUT_PULLUP); // analog
+  pinMode(TRIANGLE, INPUT_PULLUP); // analog
   pinMode(LED_BUILTIN, OUTPUT);
 
   read_cal();
