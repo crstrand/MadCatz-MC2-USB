@@ -1,4 +1,5 @@
 # MadCatz-MC2-USB
+<img src="https://github.com/crstrand/MadCatz-MC2-USB/blob/main/images/Mad Catz MC2.jpg" alt="MadCatz MC2 Racing Wheel" width="400"/><br>
 ## Use an Arduino Pro Micro to repurpose the <br>Mad Catz MC2 steering wheel/pedal set to USB<br>
 ## Features
 ### Now with Cosine scaling of the steering wheel input!<br>
