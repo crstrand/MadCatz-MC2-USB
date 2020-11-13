@@ -77,7 +77,7 @@ CAL           ORG/WHT(J5)
 #define BRAKE_MAX_DEFAULT 780
 
 Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,JOYSTICK_TYPE_GAMEPAD,
-  9, 4,                  // Button Count, Hat Switch Count
+  MAX_NUM_BUTTONS, 4,                  // Button Count, Hat Switch Count
   false, false, false,   // no X and no Y, no Z Axis
   false, false, false,   // No Rx, Ry, or Rz
   false, false,          // No rudder or throttle
