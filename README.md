@@ -16,7 +16,8 @@ This requires **major** rewiring of your wheel.  You will remove the stock circu
 **Your MadCatz MC2 will no longer work with XBox/PS2/N64.**<br>
 Due to IO limitations, not all buttons are functional.  The LED bar graph is not connected.<br>
 I inverted the +5v and ground lines to the steering pot and the brake and accelerator pots to get them to provide 0V when fully left (or not depressed) and max signal when fully right (or depressed fully).<br>
-The signals from the A,B,X,Y buttons are much lower than expected (1.5V when it should be 5V). As such, the buttons don't *always* behave as expected. I may tear into the wheel and see what is going on later.
+The signals from the A,B,X,Y buttons are much lower than expected (1.5V when it should be 5V). As such, the buttons don't *always* behave as expected.<br>
+To fix this, I connected those buttons to four of the analog inputs.  The measured voltage is 1.5V open, 0.8V closed so anything less than 1.0V is considered a button press.<br>
 ## Software
 The code is compiled in Visual Studio Code with PlatformIO.<br>
 I use the library [ArduinoJoystickLibrary](https://github.com/MHeironimus/ArduinoJoystickLibrary.git) by Matthew Heironimus
