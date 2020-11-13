@@ -3,6 +3,11 @@
 ## Features
 ### Now with Cosine scaling of the steering wheel input!<br>
 Even though the steering wheel seems to move +/- 135degrees, if you take the steering wheel value and cosine scale it between +/-90 degrees, you get a steering wheel that has less input in the center and increasing input closer to the ends of travel.<br>
+The software now has a default of 70 degrees which is settable in the calibration menu (access with a serial terminal "h" for help menu).<br>
+70 degrees further dampens the steering in the center section, with the tradeoff of not full steering output at wheel lock.
+**PLEASE NOTE: If you calibrate your steering wheel in windows, it will take the lower signals as the max and will scale it back up to look like the 90 degree graph.<br>
+Therefore, do *not* scale the steering wheel in windows.**<br>
+The accelerator has a 1.2 multiplier on it so calibrating that would be bad also.<br>
 ![Linear_vs_Cosine_graph.png](Linear_vs_Cosine_graph.png)
 ## Wiring
 The wiring is included as comments at the top of main.cpp.<br>
