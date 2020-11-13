@@ -9,9 +9,9 @@
 #define DEBUG 0
 #define TIMEOUT_HALF_SECONDS 20
 #define ENABLESERIAL 1
-#define ACCELAVG 0
+#define ACCELAVG 1
 #define ACCELSCALING 1
-#define BRAKEAVG 0
+#define BRAKEAVG 1
 #define WHEELAVG 1
 #define COSINE_SCALING 1
 #define TIMESTUDY 0
@@ -75,6 +75,7 @@ CAL           ORG/WHT(J5)
 #define ACCEL_MAX_DEFAULT 758
 #define BRAKE_MIN_DEFAULT 0
 #define BRAKE_MAX_DEFAULT 780
+#define STEERING_SCALE_ANGLE_DEFAULT 70
 
 Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,JOYSTICK_TYPE_GAMEPAD,
   MAX_NUM_BUTTONS, 4,                  // Button Count, Hat Switch Count
@@ -98,6 +99,7 @@ int accel_min = ACCEL_MIN_DEFAULT;
 int accel_max = ACCEL_MAX_DEFAULT;
 int brake_min = BRAKE_MIN_DEFAULT;
 int brake_max = BRAKE_MAX_DEFAULT;
+int scale_angle = STEERING_SCALE_ANGLE_DEFAULT;
 } wheelcal;
 
 int _dpad_switch[4]={DUP,DRT,DDN,DLT};
@@ -176,7 +178,7 @@ void show_menu()
   Serial.println(F("1. Steering wheel min/max/center"));
   Serial.println(F("2. Accelerator min/max"));
   Serial.println(F("3. Brake min/max"));
-  Serial.println(F("4. Steering wheel deadband setting"));
+  Serial.println(F("4. Steering wheel cosine scaling angle"));
   Serial.println(F("5. Reset all values to defaults"));
   Serial.println(F("0. quit cal mode and save values to EEPROM"));
   Serial.println(F("q. Quit and do not save\n"));
@@ -209,18 +211,18 @@ void steering_cal()
   while(!Serial.available()) delay(500);
 }
 
-void steering_deadband()
+void steering_scale_angle()
 {
-  int deadband_new = 0;
+  int scale_angle_new = 0;
   Serial.setTimeout(10*1000);
-  Serial.println(F("Enter the value for the steering deadband (2-100)"));
-  Serial.print(F("(full range of steering values is 0 to 1023)\nCurrent value: "));
-  Serial.print(wheelcal.steering_db);
-  deadband_new = Serial.readStringUntil('\n').toInt();
-  if(deadband_new>=2 && deadband_new<=100)
-    wheelcal.steering_db = deadband_new;
-  Serial.print(F("\ndeadband = "));
-  Serial.println(wheelcal.steering_db);
+  Serial.println(F("Enter the value for the steering scale angle (45-90)"));
+  Serial.print(F("Current value: "));
+  Serial.print(wheelcal.scale_angle);
+  scale_angle_new = Serial.readStringUntil('\n').toInt();
+  if(scale_angle_new>=45 && scale_angle_new<=90)
+    wheelcal.scale_angle = scale_angle_new;
+  Serial.print(F("\nscale_angle = "));
+  Serial.println(wheelcal.scale_angle);
 }
 
 int cosine_scaling(int input_val)
@@ -229,9 +231,9 @@ int cosine_scaling(int input_val)
   float bottom_range, top_range;
   if(input_val<=wheelcal.steering_center) // we are between min and center
   {
-    // input_angle = 90*input_val/(Center-Min)-90
+    // input_angle = wheelcal.scale_angle*input_val/(Center-Min)-wheelcal.scale_angle
     bottom_range = wheelcal.steering_center-wheelcal.steering_left;
-    input_angle = 90*float(input_val)/bottom_range-90;
+    input_angle = wheelcal.scale_angle*float(input_val)/bottom_range-wheelcal.scale_angle;
     cos_val = cos(input_angle*PI/180)*(bottom_range);
     #if DEBUG
     Serial.print(F(" input_val = "));
@@ -247,11 +249,11 @@ int cosine_scaling(int input_val)
   }
   else // we are between center+1 and max
   {
-    // input_angle = 90*(input_val-Center)/(Max-Center)
+    // input_angle = wheelcal.scale_angle*(input_val-Center)/(Max-Center)
     // Cos_ratio_high = 1-COS(Input_Angle*PI()/180)
     // cos_val = Cos_ratio_high*(Max-Center)+Center
     top_range = wheelcal.steering_right-wheelcal.steering_center;
-    input_angle = float(input_val-wheelcal.steering_center)*90/top_range;
+    input_angle = float(input_val-wheelcal.steering_center)*wheelcal.scale_angle/top_range;
     cos_val = ((1-cos(input_angle*PI/180))*top_range) + wheelcal.steering_center;
     #if DEBUG
     Serial.print(F(" input_val = "));
@@ -350,8 +352,8 @@ void print_cal()
   Serial.println(wheelcal.steering_right);
   Serial.print(F("steering_center = "));
   Serial.println(wheelcal.steering_center);
-  Serial.print(F("steering_deadband = "));
-  Serial.println(wheelcal.steering_db);
+  Serial.print(F("steering_scale_angle = "));
+  Serial.println(wheelcal.scale_angle);
   Serial.print(F("accel_min = "));
   Serial.println(wheelcal.accel_min);
   Serial.print(F("accel_max = "));
@@ -419,7 +421,7 @@ void do_analog_cal()
             brake_cal();
             break;
           case '4':
-            steering_deadband();
+            steering_scale_angle();
             break;
           case '5':
             reset_cal();
