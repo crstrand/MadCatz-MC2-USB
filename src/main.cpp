@@ -75,7 +75,9 @@ CAL           ORG/WHT(J5)
 #define ACCEL_MAX_DEFAULT 758
 #define BRAKE_MIN_DEFAULT 0
 #define BRAKE_MAX_DEFAULT 780
-#define STEERING_SCALE_ANGLE_DEFAULT 70
+#define STEERING_SCALE_ANGLE_DEFAULT 90
+#define STEERING_NUM_SAMPLES_DEFAULT 10
+#define STEERING_NUM_SAMPLES_MAX 100
 
 Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,JOYSTICK_TYPE_GAMEPAD,
   MAX_NUM_BUTTONS, 4,                  // Button Count, Hat Switch Count
@@ -100,6 +102,8 @@ int accel_max = ACCEL_MAX_DEFAULT;
 int brake_min = BRAKE_MIN_DEFAULT;
 int brake_max = BRAKE_MAX_DEFAULT;
 int scale_angle = STEERING_SCALE_ANGLE_DEFAULT;
+int steering_num_samples = STEERING_NUM_SAMPLES_DEFAULT;
+bool cosine_scaling_enable = true;
 } wheelcal;
 
 int _dpad_switch[4]={DUP,DRT,DDN,DLT};
@@ -178,7 +182,7 @@ void show_menu()
   Serial.println(F("1. Steering wheel min/max/center"));
   Serial.println(F("2. Accelerator min/max"));
   Serial.println(F("3. Brake min/max"));
-  Serial.println(F("4. Steering wheel cosine scaling angle"));
+  Serial.println(F("4. Steering wheel scaling"));
   Serial.println(F("5. Reset all values to defaults"));
   Serial.println(F("0. quit cal mode and save values to EEPROM"));
   Serial.println(F("q. Quit and do not save\n"));
@@ -214,15 +218,40 @@ void steering_cal()
 void steering_scale_angle()
 {
   int scale_angle_new = 0;
+  int steering_num_samples_new = STEERING_NUM_SAMPLES_DEFAULT;
+  char inchar;
+
   Serial.setTimeout(10*1000);
   Serial.println(F("Enter the value for the steering scale angle (45-90)"));
+  Serial.println(F("90 will give you full range of steering output\nbut will not flatten the centre as much\n45 will flatten, but the maximum steering input will not be full travel"));
   Serial.print(F("Current value: "));
-  Serial.print(wheelcal.scale_angle);
+  Serial.println(wheelcal.scale_angle);
   scale_angle_new = Serial.readStringUntil('\n').toInt();
   if(scale_angle_new>=45 && scale_angle_new<=90)
     wheelcal.scale_angle = scale_angle_new;
-  Serial.print(F("\nscale_angle = "));
+  Serial.print(F("\n******************\nscale_angle = "));
   Serial.println(wheelcal.scale_angle);
+
+  Serial.print(F("Enter the value for the number of steering averages sample size (1-"));
+  Serial.print(STEERING_NUM_SAMPLES_MAX);
+  Serial.println(")");
+  Serial.print(F("1 = faster response, "));
+  Serial.print(STEERING_NUM_SAMPLES_MAX);
+  Serial.println(F(" = slower response"));
+  Serial.print(F("Current value: "));
+  Serial.println(wheelcal.steering_num_samples);
+  steering_num_samples_new = Serial.readStringUntil('\n').toInt();
+  if(steering_num_samples_new>=1 && steering_num_samples_new<=STEERING_NUM_SAMPLES_MAX)
+    wheelcal.steering_num_samples = steering_num_samples_new;
+  Serial.print(F("\n******************\nsteering_num_samples = "));
+  Serial.println(wheelcal.steering_num_samples);
+  Serial.flush();
+  Serial.println(F("Enable cosine scaling? (y/n)"));
+  while(!Serial.available()) delay(500);
+  inchar=Serial.read();
+  wheelcal.cosine_scaling_enable = (inchar=='y');
+  Serial.print(F("Cosine scaling enabled = "));
+  Serial.println(wheelcal.cosine_scaling_enable);
 }
 
 int cosine_scaling(int input_val)
@@ -323,9 +352,13 @@ void read_cal()
     wheelcal.steering_right = temp_cal.steering_right;
   if(temp_cal.steering_center>=ONE_THIRD_RANGE && temp_cal.steering_center<=TWO_THIRD_RANGE)
     wheelcal.steering_center = temp_cal.steering_center;
-  if(temp_cal.steering_db>=2 && temp_cal.steering_db<=ONE_TENTH_RANGE)
+  if(temp_cal.scale_angle>=45 && temp_cal.scale_angle<=90)
+    wheelcal.scale_angle = temp_cal.scale_angle;
+  if(temp_cal.steering_db>=0 && temp_cal.steering_db<=ONE_TENTH_RANGE)
     wheelcal.steering_db = temp_cal.steering_db;
-
+  if(temp_cal.steering_num_samples>=0 && temp_cal.steering_num_samples<=STEERING_NUM_SAMPLES_MAX)
+    wheelcal.steering_num_samples = temp_cal.steering_num_samples;
+  wheelcal.cosine_scaling_enable = temp_cal.cosine_scaling_enable;
   if(temp_cal.accel_min>=0 && temp_cal.accel_min<=ONE_THIRD_RANGE)
     wheelcal.accel_min = temp_cal.accel_min;
   if(temp_cal.accel_max>=TWO_THIRD_RANGE && temp_cal.accel_max<=FULL_RANGE)
@@ -354,6 +387,10 @@ void print_cal()
   Serial.println(wheelcal.steering_center);
   Serial.print(F("steering_scale_angle = "));
   Serial.println(wheelcal.scale_angle);
+  Serial.print(F("cosine_scaling_enable = "));
+  Serial.println(wheelcal.cosine_scaling_enable);
+  Serial.print(F("steering_num_samples = "));
+  Serial.println(wheelcal.steering_num_samples);
   Serial.print(F("accel_min = "));
   Serial.println(wheelcal.accel_min);
   Serial.print(F("accel_max = "));
@@ -371,10 +408,12 @@ void reset_cal()
   wheelcal.steering_right = STEERING_RIGHT_DEFAULT;
   wheelcal.steering_center = STEERING_CENTER_DEFAULT;
   wheelcal.steering_db = STEERING_DEADBAND_DEFAULT;
+  wheelcal.steering_num_samples = STEERING_NUM_SAMPLES_DEFAULT;
   wheelcal.accel_min = ACCEL_MIN_DEFAULT;
   wheelcal.accel_max = ACCEL_MAX_DEFAULT;
   wheelcal.brake_min = BRAKE_MIN_DEFAULT;
   wheelcal.brake_max = BRAKE_MAX_DEFAULT;
+  wheelcal.cosine_scaling_enable = true;
   Serial.println(F("Calibration values set back to defaults"));
   //save_cal();
 }
@@ -490,7 +529,7 @@ char temp_char;
 
 int _accel_sum = 0;
 int _brake_sum = 0;
-int _wheel_sum = 0;
+uint64_t _wheel_sum = 0;
 int num_accel_samples = 0;
 int num_brake_samples = 0;
 int num_wheel_samples = 0;
@@ -500,7 +539,7 @@ int _brake, raw_brake;
 int _wheel,raw_wheel, new_wheel;
 int accel_samples_buff[ACCEL_FILTER_SAMPLES];
 int brake_samples_buff[BRAKE_FILTER_SAMPLES];
-int wheel_samples_buff[WHEEL_FILTER_SAMPLES];
+int wheel_samples_buff[STEERING_NUM_SAMPLES_MAX];
 float accel_scaling_value = 1.2;
 
 bool scanmode = false;
@@ -508,6 +547,7 @@ bool scanmode = false;
 uint8_t i;
 unsigned long startmsec, elapsedmsec;
 int loopcounter=0;
+float accel_f;
 
 void loop() 
 {
@@ -541,7 +581,8 @@ void loop()
   _accel = raw_accel;
   #endif
   #if ACCELSCALING
-  _accel = int(float(_accel) * accel_scaling_value);
+  accel_f = _accel;
+  _accel = int(accel_f * accel_scaling_value);
   #endif
 
   raw_brake = analogRead(BRAKE);
@@ -559,21 +600,21 @@ void loop()
   #endif
 
   raw_wheel = analogRead(WHEEL);
-  #if COSINE_SCALING
-  new_wheel = cosine_scaling(raw_wheel);
-  #else
-  new_wheel = raw_wheel;
-  #endif
+  if(wheelcal.cosine_scaling_enable)
+    new_wheel = cosine_scaling(raw_wheel);
+  else
+    new_wheel = raw_wheel;
+
   #if WHEELAVG
   wheel_samples_buff[num_wheel_samples] = new_wheel;
   num_wheel_samples++;
   // calculate a moving average for steering wheel
-  if( num_wheel_samples >= WHEEL_FILTER_SAMPLES)
+  if( num_wheel_samples >= wheelcal.steering_num_samples)
     num_wheel_samples = 0;
   _wheel_sum = 0;
-  for( i = 0; i < WHEEL_FILTER_SAMPLES; i++ )
+  for( i = 0; i < wheelcal.steering_num_samples; i++ )
     _wheel_sum += wheel_samples_buff[i];
-  _wheel = _wheel_sum / WHEEL_FILTER_SAMPLES;  
+  _wheel = _wheel_sum / wheelcal.steering_num_samples;  
   #else
   _wheel = raw_wheel;
   #endif
@@ -629,13 +670,8 @@ void loop()
     Serial.print(_brake);
     Serial.print(F(","));
     Serial.print(_wheel);
-    #if COSINE_SCALING
-    Serial.print(F(" (cosine scaled)"));
-    #else
-    // show what the cosine scaling "would" do
-    Serial.print(F(" cosine_scaling="));
-    Serial.print(cosine_scaling(wheel_samples_buff[num_wheel_samples]),DEC);
-    #endif
+    if(wheelcal.cosine_scaling_enable)
+      Serial.print(F(" (cosine scaled)"));
     Serial.print(F("  Raw: "));
     Serial.print(raw_accel);
     Serial.print(F(","));
